@@ -1,5 +1,5 @@
 # Library´s database
-#### A database for a library thar sell and rent books, with clients, authors, books and transactions tables.
+#### A database for a library that sell and rent books, with clients, authors, books and transactions tables.
 
 This is from the [MySql course][2], we create the db from nothing, add registers, and then we switched to an already full database for some complex queries.
 
