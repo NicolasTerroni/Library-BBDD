@@ -1,0 +1,304 @@
+# Book's table
+
+CREATE TABLE IF NOT EXISTS books (
+    book_id INTEGER UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    author_id INTEGER UNSIGNED ,
+    title VARCHAR(100) NOT NULL,
+    year INTEGER UNSIGNED ,
+    language VARCHAR(2) NOT NULL DEFAULT "es" COMMENT "ISO 639-1 Language",
+    cover_url VARCHAR(500),
+    price DOUBLE(6,2) NOT NULL DEFAULT 10.0,
+    sellable TINYINT(1) DEFAULT 1,
+    copies INTEGER NOT NULL DEFAULT 1,
+    description TEXT
+);
+
+# Author's table
+
+CREATE TABLE IF NOT EXISTS authors (
+    author_id INTEGER UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    nationality VARCHAR(3)
+);
+
+# Client's table
+
+CREATE TABLE clients(
+    client_id INTEGER UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    email VARCHAR(50) NOT NULL UNIQUE,
+    birthdate DATETIME,
+    gender ENUM('M','F','NB') NOT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
+# Operation table
+
+CREATE TABLE IF NOT EXISTS operations(
+    operation_id INTEGER UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    book_id INTEGER UNSIGNED,
+    client_id INTEGER UNSIGNED,
+    type ENUM('B','R','S') NOT NULL COMMENT "B = BORROWED, R = RETURNED, S = SOLD",
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP,
+    finished TINYINT(1) NOT NULL
+);
+
+# Insert into
+
+INSERT INTO authors(name, nationality)
+VALUES('Juan Rulfo','MEX');
+
+INSERT INTO authors(name, nationality)
+VALUES('Gabriel Garcia Marquez','COL'),
+('Juan Gabriel Vasquez','COL');
+
+INSERT INTO authors(name,nationality)
+VALUES ('Jorge Luis Borges','ARG');
+
+INSERT INTO authors(name,nationality)
+VALUES ('Julio Cortazar','ARG'),
+    ('Isabel Allende','CHI'),
+    ('Octavio Paz','MEX'),
+    ('Juan Carlos Onetti','URU');
+
+INSERT INTO clients(client_id, name, email, birthdate, gender, active) 
+VALUES (1,'Maria Dolores Gomez','Maria Dolores.95983222J@random.names','1971-06-06','F',1),
+	(2,'Adrian Fernandez','Adrian.55818851J@random.names','1970-04-09','M',1),
+	(3,'Maria Luisa Marin','Maria Luisa.83726282A@random.names','1957-07-30','F',1),
+	(4,'Pedro Sanchez','Pedro.78522059J@random.names','1992-01-31','M',1);
+
+# CSV: El Laberinto de la Soledad, Octavio Paz, 1952
+Vuelta la Laberinto de la Soledad, Octavio Paz, 1960
+
+INSERT INTO books(title,author_id,year) VALUES('El Laberinto de la Soledad',7,1952);
+
+# INSERT INTO CON QUERIES ANIDADOS
+
+INSERT INTO books(title,author_id,year)
+VALUES('Vuelta la Laberinto de la Soledad',
+(SELECT author_id FROM authors where name='Octavio Paz'),
+1960);
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# We switched to a already full database so we can do select queries
+
+! =  Make a quick query!
+
+! Get the last 5 clients to offer them a 10% discount on buying
+
+select name,email,created_at from clients order by created_at desc limit 5\G
+
+! The police have asked us for a female client who's lastname is Lopez
+
+select * from clients where name like "%%Lopez" and gender="F"\G
+
+! We want to know the age of our first 10 clients
+
+select name,(YEAR(NOW()) - YEAR(birthdate)) from clients order by created_at limit 10;
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+INNER JOINS
+
+select b.book_id, a.name, b.title
+from books as b
+join authors as a
+    on a.author_id = b.author_id
+where a.author_id < 6
+;
+
+# do a join without using join
+select b.title, a.name
+from authors as a, books as b
+where a.author_id = b.author_id
+limit 10;
+
+# Show the transactions on a legible way:
+select t.transaction_id, t.type, b.title, c.name, t.finished
+from transactions as t
+join books as b 
+    on t.book_id = b.book_id
+join clients as c 
+    on t.client_id = c.client_id
+;
+
+# Now show the not finished ones
+select t.transaction_id, t.type, b.title, c.name, t.finished
+from transactions as t
+join books as b 
+    on t.book_id = b.book_id
+join clients as c 
+    on t.client_id = c.client_id
+where t.finished != 1;
+
+# Who is the bestseller author?
+select a.name, count(a.name)
+from transactions as t
+join books as b 
+    on t.book_id = b.book_id
+join authors as a
+    on b.author_id = a.author_id
+group by a.name
+order by count(a.name) desc;
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+LEFT JOINS
+
+# Show all the authors with their aviable books
+select a.author_id, a.name, b.title
+from authors as a
+left join books as b
+    on a.author_id = b.author_id
+order by a.author_id;
+
+# now show authors without aviable books
+select a.author_id, a.name, b.title
+from authors as a
+left join books as b
+    on a.author_id = b.author_id
+where b.title IS NULL
+order by a.author_id;
+
+# how many books have each author?
+select a.author_id, a.name, count(b.book_id)
+from authors as a
+left join books as b
+    on a.author_id = b.author_id
+group by a.author_id
+order by count(b.book_id) desc;
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# BUSINESS CASES
+
+1- What nationalities are there?
+2- How many authors for each nationality?
+3- How many books for each nationality?
+4- What is the standart average/deviation of the book´s prices?
+5- Same but nationality
+6- What is the max/min price of a book?
+7- How´s the lend report?
+
+1----------------------------------------------------------------------- 
+select nationality
+from authors
+group by nationality
+order by nationality;
+
+
+select distinct nationality from authors order by nationality;
+
+2-----------------------------------------------------------------------
+
+select nationality, count(author_id) as n_authors
+from authors
+group by nationality
+order by n_authors desc, nationality asc;
+
+3-----------------------------------------------------------------------
+
+select a.nationality, count(book_id)
+from authors as a
+join books as b
+    on a.author_id = b.author_id
+group by a.nationality;
+
+4,5-----------------------------------------------------------------------
+select nationality, count(book_id) as n_books ,avg(price) as prom, stddev(price) as std
+from books as b
+join authors as a
+    on a.author_id = b.author_id
+group by nationality
+order by n_books desc, nationality;
+
+6-----------------------------------------------------------------------
+# just values:
+select max(price),min(price)
+from books;
+
+# max with title:
+select title,price
+from books
+order by price desc limit 3;
+
+# min with title:
+select title,price
+from books
+order by price limit 3;
+
+# max/min for each author nationality
+select nationality, count(book_id) as n_books, max(price), min(price)
+from books as b
+join authors as a
+    on a.author_id = b.author_id
+group by nationality
+order by max(price) desc,nationality;
+
+7-----------------------------------------------------------------------
+select transaction_id, type, c.name, b.title, concat(a.name, " (", a.nationality, ")") as author_nat, to_days(now()) - to_days(t.created_at) as days_ago
+from transactions as t
+left join clients as c
+    on t.client_id = c.client_id
+left join books as b
+    on t.book_id = b.book_id
+left join authors as a
+    on b.author_id = a.author_id
+order by transaction_id;
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# TYPE: " DELETE/UPDATE SET WHERE LIMIT 1; " after that complete the query, at least that you want to spend the entire night looking for backups
+
+delete from authors 
+where author_id=1 
+limit 1; 
+------------------------------------------------------------------------------------------------------------
+update clients 
+set 
+    active=0
+where
+    client_id=21
+limit 1;
+
+update clients 
+set 
+    active=0
+where
+    client_id in (10,2,56,14)
+    or name like "%Lopez";
+
+# There was a mistake, clients 2 and 14 are actually active
+
+update clients
+set active=1
+where client_id in (2,14);
+
+------------------------------------------------------------------------------------------------------------
+
+Functions, conditionals
+
+# How much is our sellable inventory?
+
+select sum(price*copies) from books where sellable=1;
+
+# show the not sellable too
+select sellable,sum(price*copies) from books group by sellable;
+
+# count all the books and separete them by before and after 1950
+select count(book_id), 
+sum(if(year<=1950,1,0)) as "<=1950",
+sum(if(year<1950,0,1)) as ">1950"
+from books;
+
+-------------------------------------------------------------------------------------------------------------
+BACKUP
+
+SAVING DATA
+mysqldump -u root -p pruebaplatzi > full_database.sql
+
+SAVING SCHEMA ONLY
+mysqldump -u root -p -d pruebaplatzi > schema.sql 
